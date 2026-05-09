@@ -17,15 +17,30 @@ request = {
     }
 }
 
+request2 = {
+    "jsonrpc": "2.0",
+    "id": 2,
+    "method": "weather/get",
+    "params": {
+        "city": "Paris"
+    }
+}
+
 process.stdin.write(json.dumps(request) + "\n")
+process.stdin.flush()
+
+process.stdin.write(json.dumps(request2) + "\n")
 process.stdin.flush()
 
 
 response = process.stdout.readline()
+response2 = process.stdout.readline()
 
 parsed =json.loads(response)
+parsed2 =json.loads(response2)
 
 print("Respuesta del servidor:")
 print(json.dumps(parsed, indent=2))
+print(json.dumps(parsed2, indent=2))
 
 
