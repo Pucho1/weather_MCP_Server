@@ -10,7 +10,7 @@ process = subprocess.Popen( # Crea OTRO proceso Python. El proceso padre es main
 
 request = {
     "jsonrpc": "2.0",
-    "id": 1,
+    "id": 100,
     "method": "weather/get",
     "params": {
         "city": "Madrid"
@@ -19,7 +19,7 @@ request = {
 
 request2 = {
     "jsonrpc": "2.0",
-    "id": 2,
+    "id": 200,
     "method": "weather/get",
     "params": {
         "city": "Paris"
@@ -32,15 +32,15 @@ process.stdin.flush()
 process.stdin.write(json.dumps(request2) + "\n")
 process.stdin.flush()
 
+responses = {}
 
-response = process.stdout.readline()
-response2 = process.stdout.readline()
-
-parsed =json.loads(response)
-parsed2 =json.loads(response2)
+for _ in range(2):
+    raw = process.stdout.readline()
+    parsed =json.loads(raw)
+    response_id = parsed["id"]
+    responses[response_id] = parsed
 
 print("Respuesta del servidor:")
-print(json.dumps(parsed, indent=2))
-print(json.dumps(parsed2, indent=2))
+print(json.dumps(responses, indent=2))
 
 
