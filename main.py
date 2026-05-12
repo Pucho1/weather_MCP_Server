@@ -8,39 +8,65 @@ process = subprocess.Popen( # Crea OTRO proceso Python. El proceso padre es main
     text=True # Indica que los datos se manejarán como texto (en lugar de bytes)
 )
 
-request = {
-    "jsonrpc": "2.0",
-    "id": 100,
-    "method": "weather/get",
-    "params": {
-        "city": "Madrid"
-    }
-}
+requests = [
+    {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+            "client": "miguel-agent"
+        }
+    },
 
-request2 = {
-    "jsonrpc": "2.0",
-    "id": 200,
-    "method": "weather/get",
-    "params": {
-        "city": "Paris"
-    }
-}
+   {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "tools/list",
+        "params": {}
+    },
 
-process.stdin.write(json.dumps(request) + "\n")
-process.stdin.flush()
+    # {
+    #     "jsonrpc": "2.0",
+    #     "id": 2,
+    #     "method": "weather/get",
+    #     "params": {
+    #         "city": {}
+    #     }
+    # },
+]
 
-process.stdin.write(json.dumps(request2) + "\n")
-process.stdin.flush()
 
-responses = {}
+for request in requests:
+    process.stdin.write(json.dumps(request) + "\n")
+    process.stdin.flush()
 
-for _ in range(2):
-    raw = process.stdout.readline()
-    parsed =json.loads(raw)
-    response_id = parsed["id"]
-    responses[response_id] = parsed
 
-print("Respuesta del servidor:")
-print(json.dumps(responses, indent=2))
+
+init_response = process.stdout.readline()
+
+print("INITIALIZE RESPONSE")
+print(json.dumps(json.loads(init_response), indent=2))
+
+tools_list = process.stdout.readline()
+
+print("tools/list RESPONSE")
+print(json.dumps(json.loads(tools_list), indent=2))
+
+
+# weather_response = process.stdout.readline()
+
+# print("WEATHER RESPONSE")
+# print(json.dumps(json.loads(weather_response), indent=2))
+
+# responses = {}
+
+# for _ in range(2):
+#     raw = process.stdout.readline()
+#     parsed =json.loads(raw)
+#     response_id = parsed["id"]
+#     responses[response_id] = parsed
+
+# print("Respuesta del servidor:")
+# print(json.dumps(responses, indent=2))
 
 
