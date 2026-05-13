@@ -5,6 +5,18 @@ from pydantic import BaseModel
 
 initialized = False
 
+# --------ERRORS--------
+
+class MCPError(Exception):
+
+    def __init__(self, code, message):
+        self.code = code
+        self.message = message
+
+        super().__init__(message)
+
+
+
 
 # -------RESOURCES------------
 
@@ -45,7 +57,7 @@ async def read_resource(params):
 
     # Comprobamos que el recurso exista en el catálogo
     if uri not in resources:
-        raise Exception("Resource not found")
+        raise MCPError(-32601 ,"Resource not found")
 
     # Recuperamos el recurso completo usando el URI
     resource = resources[uri]
@@ -141,7 +153,7 @@ async def call_tool(params):
     arguments = params.get("arguments", {})
 
     if tool_name not in tools_runtime:
-        raise NotImplementedError("Tool not found")
+        raise MCPError(-32601, "Tool not found")
     
     tool = tools_runtime[tool_name]
 
@@ -195,13 +207,13 @@ async def handle_request(line):
             "result": result
         }
 
-    except Exception as e:
+    except MCPError as e:
         response = {
             "jsonrpc": "2.0",
             "id": request_id,
             "error": {
-                "code": -32000,
-                "message": str(e)
+                "code": e.code,
+                "message": e.message
             }
         }
 

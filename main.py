@@ -113,7 +113,7 @@ resource_read_request = {
     "id": 5,
     "method": "resources/read",
     "params": {
-        "uri": resource_uri
+        "uri": "toma//toma"
     }
 }
 
