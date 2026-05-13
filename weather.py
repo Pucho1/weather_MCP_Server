@@ -5,6 +5,62 @@ from pydantic import BaseModel
 
 initialized = False
 
+
+# -------RESOURCES------------
+
+
+resources = {
+    "weather://madrid": {
+        "name": "Madrid Weather Info",
+        "description": "Static weather information for Madrid",
+        "content": "Madrid is usually sunny."
+    }
+}
+
+# cro una lista con todos mis recursos
+async def list_resources(params):
+
+    # Creamos un diccionario vacío para exponer solo la información pública
+    public_resources = {}
+
+    # Recorremos todos los recursos disponibles (key, value)
+    for uri, resource in resources.items():
+
+        # Guardamos el nombre y la descripción del recurso en la lista pública
+        public_resources[uri] = {
+            "name": resource["name"],
+            "description": resource["description"]
+        }
+
+    # Devolvemos el diccionario de recursos públicos al cliente
+    return {
+        "resources": public_resources
+    }
+
+# devuelvo el contenido de el recurso pedido
+async def read_resource(params):
+
+    # Obtenemos el URI solicitado desde los parámetros de la petición
+    uri = params.get("uri")
+
+    # Comprobamos que el recurso exista en el catálogo
+    if uri not in resources:
+        raise Exception("Resource not found")
+
+    # Recuperamos el recurso completo usando el URI
+    resource = resources[uri]
+
+    # Retornamos el URI y el contenido del recurso pedido
+    return {
+        "uri": uri,
+        "content": resource["content"]
+    }
+
+
+
+
+# -------TOOLS------------
+
 # Digo el tipo de datos del cual sera el parametro.
 # describe exactamente qué falla
 class WeatherParams(BaseModel):
@@ -24,10 +80,9 @@ async def initialize(params):
     }
 
 
+# Metodo que me ejecuta la herramieta de obtener clima.
 async def get_weather(params):
-    validated = WeatherParams(**params)
-
-    city = validated.city
+    city = params.city # Instancia tipada de Pydantic.
 
     if city == "Madrid":
         await asyncio.sleep(5)
@@ -37,10 +92,11 @@ async def get_weather(params):
         "temperature": "22C"
     }
 
-#  usamos esquemas Porque los LLMs: necesitan estructuras claras, funcionan muchísimo mejor con contratos explícitos
-tools = {
+
+tools_publics = {
     "weather/get": {
         "description": "Get weather for a city",
+        # Usamos esquemas Porque los LLMs: necesitan estructuras claras, funcionan muchísimo mejor con contratos explícitos.
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -49,31 +105,73 @@ tools = {
                 }
             },
             "required": ["city"]
-        }
+        },
     }
 }
 
+tools_runtime = {
+    "weather/get": {
+        "description": "Get weather for a city",
+        # Usamos esquemas Porque los LLMs: necesitan estructuras claras, funcionan muchísimo mejor con contratos explícitos.
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "city": {
+                    "type": "string"
+                }
+            },
+            "required": ["city"]
+        },
+        "schema": WeatherParams,# validamos los parametros.
+        "handler": get_weather, # Funcion que ejecuta la herramienta.
+    }
+}
+
+# Devolvemos la lista de erramientas segun los esquemas definidos.
 async def list_tools(params):
     return {
-        "tools": tools
+        "tools": tools_publics
     }
 
-tool_handlers = {
-    "weather/get": get_weather
-}
 
-methods = {
+# Ejecuta dispath de la tool dinamicamente.
+async def call_tool(params):
+
+    tool_name = params.get("name")
+    arguments = params.get("arguments", {})
+
+    if tool_name not in tools_runtime:
+        raise NotImplementedError("Tool not found")
+    
+    tool = tools_runtime[tool_name]
+
+    schema = tool["schema"]
+    handler = tool["handler"]
+
+    validated_arguments = schema(**arguments)
+
+    result = await handler(validated_arguments)
+
+    return result
+
+
+protocol_methods  = {
     "initialize": initialize,
     "tools/list": list_tools,
     "tools/call": None,
+    # resources
+    "resources/list": list_resources,
+    "resources/read": read_resource,
 }
+
+protocol_methods["tools/call"] = call_tool
 
 
 # Manejo la peticion.
 async def handle_request(line):
     global initialized
 
-    request = json.loads(line)
+    request = json.loads(line) # serializa el dato a json
 
     method_name = request.get("method")
     params = request.get("params", {})
@@ -83,13 +181,13 @@ async def handle_request(line):
     try:
 
         if method_name != "initialize" and not initialized:
-            raise Exception("Server not initialized")
+            raise BlockingIOError("Server not initialized")
 
-        if method_name not in methods:
-            raise Exception("Method not found")
+        if method_name not in protocol_methods:
+            raise NotImplementedError("Method not found")
 
         # Ejecuta el método correspondiente con los parámetros proporcionados y espera su resultado sin bloquear el loop
-        result = await methods[method_name](params)
+        result = await protocol_methods[method_name](params)
 
         response = {
             "jsonrpc": "2.0",
