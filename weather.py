@@ -18,8 +18,63 @@ class MCPError(Exception):
 
 
 
-# -------RESOURCES------------
+# ---------PROMPTS----------
 
+prompts = {
+    "weather-summary": {
+        "description": "Generate a weather analysis prompt",
+        "arguments": [
+            {
+                "name": "city",
+                "required": True
+            }
+        ],
+        "template": "Analyze the weather conditions in {city}"
+    }
+}
+
+#  Me dice el listado de prompts que tengo disponible.
+async def list_prompts(params):
+
+    public_prompts = {}
+
+    for name, prompt in prompts.items():
+
+        public_prompts[name] = {
+            "description": prompt["description"],
+            "arguments": prompt["arguments"]
+        }
+
+    return {
+        "prompts": public_prompts
+    }
+
+
+# Obtinee la plantilla para el prompt solicitado.
+async def get_prompt(params):
+
+    prompt_name = params.get("name") # Obtengo el nombre del prompt.
+    arguments = params.get("arguments", {}) # Obtengo los argumentos. 
+
+    if prompt_name not in prompts:
+        raise MCPError(-32601, "Prompt not found")
+
+    prompt = prompts[prompt_name] # Obtengo todos los datos segun el nombre del prompt.
+
+    template = prompt["template"]
+
+    rendered_prompt = template.format(**arguments) # Cambio el parametro por su valor city --> Madrid .
+
+    return {
+        "description": prompt["description"],
+        "prompt": rendered_prompt
+    }
+
+
+
+
+
+# -------RESOURCES------------
 
 resources = {
     "weather://madrid": {
@@ -169,11 +224,18 @@ async def call_tool(params):
 
 protocol_methods  = {
     "initialize": initialize,
+
+    # tools
     "tools/list": list_tools,
     "tools/call": None,
+
     # resources
     "resources/list": list_resources,
     "resources/read": read_resource,
+
+    # prompts
+    "prompts/list": list_prompts,
+    "prompts/get": get_prompt,
 }
 
 protocol_methods["tools/call"] = call_tool
